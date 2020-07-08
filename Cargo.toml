@@ -1,0 +1,18 @@
+[package]
+name = "async_py_rust"
+version = "0.1.0"
+authors = ["Ben Simms <ben@bensimms.moe>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "async_py_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.11.1", features = ["extension-module"] }
+smol = "0.1.18"
+event-listener = "2.2.0"
+futures = "0.3.5"
+num_cpus = "1.13.0"
