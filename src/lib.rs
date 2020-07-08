@@ -18,28 +18,38 @@ fn rust_side_worker() {
     }
 }
 
+fn set_fut_result(loop_: PyObject, fut: PyObject, res: PyObject) -> PyResult<()> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let sr = fut.getattr(py, "set_result")?;
+
+    loop_.call_method1(py, "call_soon_threadsafe", (sr, res))?;
+
+    Ok(())
+}
+
 #[pyfunction]
 fn delay_test(delay: u64, result: PyObject) -> PyResult<PyObject> {
-    let (fut, res_fut): (PyObject, PyObject) = {
+    let (fut, res_fut, loop_): (PyObject, PyObject, PyObject) = {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let asyncio = PyModule::import(py, "asyncio")?;
-        let fut: PyObject = asyncio.call0("get_running_loop")?.call_method0("create_future")?.into();
-        (fut.clone_ref(py), fut)
+        let loop_ = asyncio.call0("get_running_loop")?;
+        let fut: PyObject = loop_.call_method0("create_future")?.into();
+        (fut.clone_ref(py), fut, loop_.into())
     };
 
     smol::Task::spawn(async move {
         smol::Timer::after(Duration::from_secs(delay)).await;
 
-        {
-            println!("setting result");
+        println!("setting result");
+        if let Err(e) = set_fut_result(loop_, fut, result) {
             let gil = Python::acquire_gil();
             let py = gil.python();
-            if let Err(e) = fut.call_method1(py, "set_result", (result,)) {
-                eprintln!("error occured: {:?}", e);
-            }
-            println!("done");
+            e.print(py);
         }
+        println!("done");
     }).detach();
 
     Ok(res_fut)
